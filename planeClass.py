@@ -471,51 +471,55 @@ class Plane:
 
             message = (f"{type_header} {location_string}.") + ("" if route_to is None else f" {route_to}.") + ((f" {landed_time_msg}") if landed_time_msg != None else "")
             print (message)
-            #Google Map or tar1090 screenshot
-            if Plane.main_config.get('MAP', 'OPTION') == "GOOGLESTATICMAP":
-                from defMap import getMap
-                getMap((municipality + ", "  + state + ", "  + country_code), self.map_file_name)
-            elif Plane.main_config.get('MAP', 'OPTION') == "ADSBX":
-                from defSS import get_adsbx_screenshot
-                url_params = f"largeMode=2&hideButtons&hideSidebar&mapDim=0&zoom=10&icao={self.icao}&overlays={self.get_adsbx_map_overlays()}&limitupdates=0"
-                get_adsbx_screenshot(self.map_file_name, url_params, overrides=self.overrides, conceal_ac_id=self.conceal_ac_id, conceal_pia=self.conceal_pia)
-                from modify_image import append_airport
-                text_credit = self.config.get('MAP', 'TEXT_CREDIT') if self.config.has_option('MAP', 'TEXT_CREDIT') else None
-                append_airport(self.map_file_name, nearest_airport_dict, text_credit)
-            else:
-                raise ValueError("Map option not set correctly in this planes conf")
-            #Telegram
-            if self.config.has_section('TELEGRAM') and self.config.getboolean('TELEGRAM', 'ENABLE'):
-                from defTelegram import sendTeleg
-                photo = open(self.map_file_name, "rb")
-                sendTeleg(photo, message, self.config)
-            #Mastodon
-            if self.config.has_section('MASTODON') and self.config.getboolean('MASTODON', 'ENABLE'):
-                from defMastodon import sendMastodon
-                sendMastodon(self.map_file_name, message, self.config)
-            #Bluesky
-            if self.config.has_section('BLUESKY') and self.config.getboolean('BLUESKY', 'ENABLE'):
-                self.queue_bluesky_post(message, self.map_file_name)
+            try:
+                #Google Map or tar1090 screenshot
+                if Plane.main_config.get('MAP', 'OPTION') == "GOOGLESTATICMAP":
+                    from defMap import getMap
+                    getMap((municipality + ", "  + state + ", "  + country_code), self.map_file_name)
+                elif Plane.main_config.get('MAP', 'OPTION') == "ADSBX":
+                    from defSS import get_adsbx_screenshot
+                    url_params = f"largeMode=2&hideButtons&hideSidebar&mapDim=0&zoom=10&icao={self.icao}&overlays={self.get_adsbx_map_overlays()}&limitupdates=0"
+                    get_adsbx_screenshot(self.map_file_name, url_params, overrides=self.overrides, conceal_ac_id=self.conceal_ac_id, conceal_pia=self.conceal_pia)
+                    from modify_image import append_airport
+                    text_credit = self.config.get('MAP', 'TEXT_CREDIT') if self.config.has_option('MAP', 'TEXT_CREDIT') else None
+                    append_airport(self.map_file_name, nearest_airport_dict, text_credit)
+                else:
+                    raise ValueError("Map option not set correctly in this planes conf")
+                #Telegram
+                if self.config.has_section('TELEGRAM') and self.config.getboolean('TELEGRAM', 'ENABLE'):
+                    from defTelegram import sendTeleg
+                    photo = open(self.map_file_name, "rb")
+                    sendTeleg(photo, message, self.config)
+                #Mastodon
+                if self.config.has_section('MASTODON') and self.config.getboolean('MASTODON', 'ENABLE'):
+                    from defMastodon import sendMastodon
+                    sendMastodon(self.map_file_name, message, self.config)
+                #Bluesky
+                if self.config.has_section('BLUESKY') and self.config.getboolean('BLUESKY', 'ENABLE'):
+                    self.queue_bluesky_post(message, self.map_file_name)
 
-            #Discord
-            if self.config.getboolean('DISCORD', 'ENABLE'):
-                role_id = self.config.get('DISCORD', 'ROLE_ID') if self.config.has_option('DISCORD', 'ROLE_ID') and self.config.get('DISCORD', 'ROLE_ID').strip() != "" else None
-                sendDis(message, self.config, role_id, self.map_file_name)
-            #Twitter
-            if self.config.getboolean('TWITTER', 'ENABLE') and Plane.main_config.getboolean('TWITTER', 'ENABLE'):
-                import tweepy
-                try:
-                    twitter_media_map_obj = self.tweet_api.media_upload(self.map_file_name)
-                    alt_text = f"Reg: {self.reg} On Ground: {str(self.on_ground)} Alt: {str(self.alt_ft)} Last Contact: {str(time_since_contact)} Trigger: {trigger_type}"
-                    self.tweet_api.create_media_metadata(media_id= twitter_media_map_obj.media_id, alt_text= alt_text)
-                    self.latest_tweet_id = self.tweet_api.update_status(status = ((self.twitter_title + " " + message).strip()), media_ids=[twitter_media_map_obj.media_id]).id
-                except tweepy.errors.TweepyException as e:
-                    raise
-            #Meta
-            if self.config.has_option('META', 'ENABLE') and self.config.getboolean('META', 'ENABLE'):
-                from meta_toolkit import post_to_meta_both
-                post_to_meta_both(self.config.get("META", "FB_PAGE_ID"), self.config.get("META", "IG_USER_ID"), self.map_file_name, message, self.config.get("META", "ACCESS_TOKEN"))
-            os.remove(self.map_file_name)
+                #Discord
+                if self.config.getboolean('DISCORD', 'ENABLE'):
+                    role_id = self.config.get('DISCORD', 'ROLE_ID') if self.config.has_option('DISCORD', 'ROLE_ID') and self.config.get('DISCORD', 'ROLE_ID').strip() != "" else None
+                    sendDis(message, self.config, role_id, self.map_file_name)
+                #Twitter
+                if self.config.getboolean('TWITTER', 'ENABLE') and Plane.main_config.getboolean('TWITTER', 'ENABLE'):
+                    import tweepy
+                    try:
+                        twitter_media_map_obj = self.tweet_api.media_upload(self.map_file_name)
+                        alt_text = f"Reg: {self.reg} On Ground: {str(self.on_ground)} Alt: {str(self.alt_ft)} Last Contact: {str(time_since_contact)} Trigger: {trigger_type}"
+                        self.tweet_api.create_media_metadata(media_id= twitter_media_map_obj.media_id, alt_text= alt_text)
+                        self.latest_tweet_id = self.tweet_api.update_status(status = ((self.twitter_title + " " + message).strip()), media_ids=[twitter_media_map_obj.media_id]).id
+                    except tweepy.errors.TweepyException as e:
+                        raise
+                #Meta
+                if self.config.has_option('META', 'ENABLE') and self.config.getboolean('META', 'ENABLE'):
+                    from meta_toolkit import post_to_meta_both
+                    post_to_meta_both(self.config.get("META", "FB_PAGE_ID"), self.config.get("META", "IG_USER_ID"), self.map_file_name, message, self.config.get("META", "ACCESS_TOKEN"))
+            except Exception as e:
+                print(f"Error generating screenshot or dispatching notifications, skipping this event: {e}")
+            if os.path.isfile(self.map_file_name):
+                os.remove(self.map_file_name)
             if self.landed:
                 if nearest_airport_dict is not None and self.nearest_from_airport is not None and nearest_airport_dict['icao'] != self.nearest_from_airport:
                     from defAirport import get_airport_by_icao

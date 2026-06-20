@@ -217,15 +217,18 @@ try:
             for icao in planes:
                 plane = planes[icao]
                 plane_info = pull_airplaneslive(icao)
-                if plane_info:
-                    if plane_info['ac']:
-                        data_indexed[icao.upper()] = plane_info['ac'][0]
-                        plane.run_adsbx_v2(data_indexed[icao.upper()])
+                try:
+                    if plane_info:
+                        if plane_info['ac']:
+                            data_indexed[icao.upper()] = plane_info['ac'][0]
+                            plane.run_adsbx_v2(data_indexed[icao.upper()])
+                        else:
+                            plane.run_empty()
                     else:
+                        print(f"No data for icao {icao}. Skipping...")
                         plane.run_empty()
-                else:
-                    print(f"No data for icao {icao}. Skipping...")
-                    plane.run_empty()
+                except Exception as e:
+                    print(f"Error processing {icao}, skipping this cycle: {e}")
             if not data_indexed:
                 failed_count += 1
         elif source == "OPENS":
