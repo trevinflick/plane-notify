@@ -3,7 +3,8 @@ services:
     plane-notify:
         platform: linux/amd64
         shm_size: 2gb
+        restart: unless-stopped
         build:
             context: .
-        volumes: 
+        volumes:
             - ./:/plane-notify
