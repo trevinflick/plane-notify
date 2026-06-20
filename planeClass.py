@@ -65,6 +65,7 @@ class Plane:
         self.last_track = None
         self.circle_history = None
         self.nearest_from_airport = None
+        self.pending_bluesky_posts = []
         if self.config.has_option('DATA', 'DATA_LOSS_MINS'):
             self.data_loss_mins = self.config.getint('DATA', 'DATA_LOSS_MINS')
         else:
@@ -289,12 +290,37 @@ class Plane:
                     route_to = route_format(extra_route_info, "change")
 
         return route_to
+    def queue_bluesky_post(self, message, photo_path):
+        """Holds a Bluesky post for BLUESKY.DELAY_MINS before sending, instead of posting in real time."""
+        import os
+        import shutil
+        import uuid
+        delay_mins = self.config.getint('BLUESKY', 'DELAY_MINS') if self.config.has_option('BLUESKY', 'DELAY_MINS') else 30
+        held_photo_path = f"{photo_path}.bsky_pending_{uuid.uuid4().hex}.png"
+        shutil.copy(photo_path, held_photo_path)
+        self.pending_bluesky_posts.append({
+            'post_at': datetime.utcnow() + timedelta(minutes=delay_mins),
+            'message': message,
+            'photo_path': held_photo_path,
+        })
+    def flush_bluesky_queue(self):
+        """Sends any queued Bluesky posts whose delay has elapsed."""
+        import os
+        due = [post for post in self.pending_bluesky_posts if datetime.utcnow() >= post['post_at']]
+        for post in due:
+            from defBluesky import sendBluesky
+            sendBluesky(post['photo_path'], post['message'], self.config)
+            if os.path.isfile(post['photo_path']):
+                os.remove(post['photo_path'])
+            self.pending_bluesky_posts.remove(post)
     def run_empty(self):
         self.print_header("BEGIN")
         self.feeding = False
         self.run_check()
     def run_check(self):
         """Runs a check of a plane module to see if its landed or takenoff using plane data, and takes action if so."""
+        if self.config.has_section('BLUESKY') and self.config.getboolean('BLUESKY', 'ENABLE'):
+            self.flush_bluesky_queue()
         print(self)
         #Ability to Remove old Map
         import os
@@ -467,6 +493,9 @@ class Plane:
             if self.config.has_section('MASTODON') and self.config.getboolean('MASTODON', 'ENABLE'):
                 from defMastodon import sendMastodon
                 sendMastodon(self.map_file_name, message, self.config)
+            #Bluesky
+            if self.config.has_section('BLUESKY') and self.config.getboolean('BLUESKY', 'ENABLE'):
+                self.queue_bluesky_post(message, self.map_file_name)
 
             #Discord
             if self.config.getboolean('DISCORD', 'ENABLE'):
@@ -828,6 +857,9 @@ class Plane:
                         if self.config.has_section('MASTODON') and self.config.getboolean('MASTODON', 'ENABLE'):
                             from defMastodon import sendMastodon
                             sendMastodon(self.map_file_name, message, self.config)
+                        #Bluesky
+                        if self.config.has_section('BLUESKY') and self.config.getboolean('BLUESKY', 'ENABLE'):
+                            self.queue_bluesky_post(message, self.map_file_name)
                         self.circle_history['triggered'] = True
                 elif abs(total_change) <= 360 and self.circle_history["triggered"]:
                     print("No Longer Circling, trigger cleared")

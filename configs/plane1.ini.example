@@ -56,3 +56,11 @@ ENABLE = FALSE
 ACCESS_TOKEN = mastodonaccesstoken
 APP_URL = mastodonappurl
 
+[BLUESKY]
+ENABLE = FALSE
+HANDLE = yourbot.bsky.social
+#Create this under Settings > App Passwords on bsky.app, never use your main account password
+APP_PASSWORD = xxxx-xxxx-xxxx-xxxx
+#Minutes to hold a post before sending, to avoid posting a real-time location
+DELAY_MINS = 30
+

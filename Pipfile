@@ -14,7 +14,6 @@ pillow = "*"
 tweepy = "*"
 discord-webhook = "*"
 selenium = "*"
-opensky-api = {editable = true, git = "https://github.com/openskynetwork/opensky-api.git", subdirectory = "python"}
 webdriver-manager = "*"
 shapely = "*"
 pycairo = "*"
@@ -27,6 +26,7 @@ beautifulsoup4 = "*"
 python-telegram-bot = "*"
 configparser = "*"
 "mastodon.py" = "*"
+atproto = "*"
 
 [requires]
 python_version = "3.9"
