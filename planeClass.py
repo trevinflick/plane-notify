@@ -597,17 +597,21 @@ class Plane:
                     self.emergency_already_triggered = True
                     squawk_message = (f"{self.dis_title} Squawking {self.last_emergency[1]} {emergency_squawks[self.squawk]}").strip()
                     print(squawk_message)
-                    #Google Map or tar1090 screenshot
-                    if Plane.main_config.get('MAP', 'OPTION') == "GOOGLESTATICMAP":
-                        getMap((municipality + ", "  + state + ", "  + country_code), self.map_file_name)
-                    if Plane.main_config.get('MAP', 'OPTION') == "ADSBX":
-                        from defSS import get_adsbx_screenshot
-                        url_params = f"largeMode=2&hideButtons&hideSidebar&mapDim=0&zoom=10&icao={self.icao}&overlays={self.get_adsbx_map_overlays()}&limitupdates=0"
-                        get_adsbx_screenshot(self.map_file_name, url_params, overrides=self.overrides, conceal_ac_id=self.conceal_ac_id, conceal_pia=self.conceal_pia)
-                    if self.config.getboolean('DISCORD', 'ENABLE'):
-                        dis_message =  (self.dis_title + " "  + squawk_message)
-                        sendDis(dis_message, self.config, None, self.map_file_name)
-                    os.remove(self.map_file_name)
+                    try:
+                        #Google Map or tar1090 screenshot
+                        if Plane.main_config.get('MAP', 'OPTION') == "GOOGLESTATICMAP":
+                            getMap((municipality + ", "  + state + ", "  + country_code), self.map_file_name)
+                        if Plane.main_config.get('MAP', 'OPTION') == "ADSBX":
+                            from defSS import get_adsbx_screenshot
+                            url_params = f"largeMode=2&hideButtons&hideSidebar&mapDim=0&zoom=10&icao={self.icao}&overlays={self.get_adsbx_map_overlays()}&limitupdates=0"
+                            get_adsbx_screenshot(self.map_file_name, url_params, overrides=self.overrides, conceal_ac_id=self.conceal_ac_id, conceal_pia=self.conceal_pia)
+                        if self.config.getboolean('DISCORD', 'ENABLE'):
+                            dis_message =  (self.dis_title + " "  + squawk_message)
+                            sendDis(dis_message, self.config, None, self.map_file_name)
+                    except Exception as e:
+                        print(f"Error generating screenshot or dispatching emergency squawk notification, skipping: {e}")
+                    if os.path.isfile(self.map_file_name):
+                        os.remove(self.map_file_name)
             #Realizes first time seeing emergency, stores time and type
             elif self.squawk in emergency_squawks.keys() and not self.emergency_already_triggered and not self.on_ground:
                 print("Emergency", self.squawk, "detected storing code and time and waiting to trigger")
@@ -809,61 +813,66 @@ class Plane:
                                 image.write_to_png(tfr_map_filename)
                                 return tfr_map_filename
 
-                        from defSS import get_adsbx_screenshot
-                        url_params = f"largeMode=2&hideButtons&hideSidebar&mapDim=0&zoom=10&icao={self.icao}&overlays={self.get_adsbx_map_overlays()}&limitupdates=0"
-                        get_adsbx_screenshot(self.map_file_name, url_params, overrides=self.overrides, conceal_ac_id=self.conceal_ac_id, conceal_pia=self.conceal_pia)
-                        if nearest_airport_dict['distance_mi'] < 3:
-                            if "touchngo" in self.circle_history.keys():
-                                message = f"Doing touch and goes at {nearest_airport_dict['icao']}"
+                        try:
+                            from defSS import get_adsbx_screenshot
+                            url_params = f"largeMode=2&hideButtons&hideSidebar&mapDim=0&zoom=10&icao={self.icao}&overlays={self.get_adsbx_map_overlays()}&limitupdates=0"
+                            get_adsbx_screenshot(self.map_file_name, url_params, overrides=self.overrides, conceal_ac_id=self.conceal_ac_id, conceal_pia=self.conceal_pia)
+                            if nearest_airport_dict['distance_mi'] < 3:
+                                if "touchngo" in self.circle_history.keys():
+                                    message = f"Doing touch and goes at {nearest_airport_dict['icao']}"
+                                else:
+                                    message =  f"Circling over {nearest_airport_dict['icao']} at {self.alt_ft}ft."
                             else:
-                                message =  f"Circling over {nearest_airport_dict['icao']} at {self.alt_ft}ft."
-                        else:
-                            message =  f"Circling {round(nearest_airport_dict['distance_mi'], 2)}mi {cardinal} of {nearest_airport_dict['icao']}, {nearest_airport_dict['name']} at {self.alt_ft}ft. "
-                        tfr_map_filename = None
-                        if in_tfr is not None:
-                            wording_context = "Inside" if 'context' not in in_tfr.keys() else "Above" if in_tfr['context'] == 'above' else "Below"
-                            message += f" {wording_context} TFR {in_tfr['info']['NOTAM']}, a TFR for {in_tfr['info']['Type'].title()}"
-                            tfr_map_filename = tfr_image(context, (self.latitude, self.longitude))
-                        elif in_tfr is None and closest_tfr is not None and "distance" in closest_tfr.keys() and closest_tfr["distance"] <= 20:
-                            message += f" {closest_tfr['distance']} miles from TFR {closest_tfr['info']['NOTAM']}, a TFR for {closest_tfr['info']['Type']}"
-                            tfr_map_filename = tfr_image(context, (self.latitude, self.longitude))
-                        elif in_tfr is None and closest_tfr is not None and "distance" not in closest_tfr.keys():
-                            message += f" near TFR {closest_tfr['info']['NOTAM']}, a TFR for {closest_tfr['info']['Type']}"
-                            raise Exception(message)
+                                message =  f"Circling {round(nearest_airport_dict['distance_mi'], 2)}mi {cardinal} of {nearest_airport_dict['icao']}, {nearest_airport_dict['name']} at {self.alt_ft}ft. "
+                            tfr_map_filename = None
+                            if in_tfr is not None:
+                                wording_context = "Inside" if 'context' not in in_tfr.keys() else "Above" if in_tfr['context'] == 'above' else "Below"
+                                message += f" {wording_context} TFR {in_tfr['info']['NOTAM']}, a TFR for {in_tfr['info']['Type'].title()}"
+                                tfr_map_filename = tfr_image(context, (self.latitude, self.longitude))
+                            elif in_tfr is None and closest_tfr is not None and "distance" in closest_tfr.keys() and closest_tfr["distance"] <= 20:
+                                message += f" {closest_tfr['distance']} miles from TFR {closest_tfr['info']['NOTAM']}, a TFR for {closest_tfr['info']['Type']}"
+                                tfr_map_filename = tfr_image(context, (self.latitude, self.longitude))
+                            elif in_tfr is None and closest_tfr is not None and "distance" not in closest_tfr.keys():
+                                message += f" near TFR {closest_tfr['info']['NOTAM']}, a TFR for {closest_tfr['info']['Type']}"
+                                raise Exception(message)
 
-                        print(message)
-                        #Telegram
-                        if self.config.has_section('TELEGRAM') and self.config.getboolean('TELEGRAM', 'ENABLE'):
-                            photo = open(self.map_file_name, "rb")
-                            from defTelegram import sendTeleg
-                            sendTeleg(photo, message, self.config)
-                        if self.config.getboolean('DISCORD', 'ENABLE'):
-                            role_id = self.config.get('DISCORD', 'ROLE_ID') if self.config.has_option('DISCORD', 'ROLE_ID') and self.config.get('DISCORD', 'ROLE_ID').strip() != "" else None
-                            if tfr_map_filename is not None:
-                                sendDis(message, self.config, role_id, self.map_file_name, tfr_map_filename)
-                            elif tfr_map_filename is None:
-                                sendDis(message, self.config, role_id, self.map_file_name)
-                        if self.config.getboolean('TWITTER', 'ENABLE') and Plane.main_config.getboolean('TWITTER', 'ENABLE'):
-                            twitter_media_map_obj = self.tweet_api.media_upload(self.map_file_name)
-                            media_ids = [twitter_media_map_obj.media_id]
-                            if tfr_map_filename is not None:
-                                twitter_media_tfr_map_obj = self.tweet_api.media_upload(tfr_map_filename)
-                                media_ids.append(twitter_media_tfr_map_obj.media_id)
-                            elif tfr_map_filename is None:
-                                print("No TFR Map")
-                            tweet = f"{self.twitter_title} {message}".strip()
-                            self.tweet_api.update_status(status = tweet, media_ids=media_ids)
-                        #Meta
-                        if self.config.has_option('META', 'ENABLE') and self.config.getboolean('META', 'ENABLE'):
-                            from meta_toolkit import post_to_meta_both
-                            post_to_meta_both(self.config.get("META", "FB_PAGE_ID"), self.config.get("META", "IG_USER_ID"), self.map_file_name, message, self.config.get("META", "ACCESS_TOKEN"))
-                        #Mastodon
-                        if self.config.has_section('MASTODON') and self.config.getboolean('MASTODON', 'ENABLE'):
-                            from defMastodon import sendMastodon
-                            sendMastodon(self.map_file_name, message, self.config)
-                        #Bluesky
-                        if self.config.has_section('BLUESKY') and self.config.getboolean('BLUESKY', 'ENABLE'):
-                            self.queue_bluesky_post(message, self.map_file_name)
+                            print(message)
+                            #Telegram
+                            if self.config.has_section('TELEGRAM') and self.config.getboolean('TELEGRAM', 'ENABLE'):
+                                photo = open(self.map_file_name, "rb")
+                                from defTelegram import sendTeleg
+                                sendTeleg(photo, message, self.config)
+                            if self.config.getboolean('DISCORD', 'ENABLE'):
+                                role_id = self.config.get('DISCORD', 'ROLE_ID') if self.config.has_option('DISCORD', 'ROLE_ID') and self.config.get('DISCORD', 'ROLE_ID').strip() != "" else None
+                                if tfr_map_filename is not None:
+                                    sendDis(message, self.config, role_id, self.map_file_name, tfr_map_filename)
+                                elif tfr_map_filename is None:
+                                    sendDis(message, self.config, role_id, self.map_file_name)
+                            if self.config.getboolean('TWITTER', 'ENABLE') and Plane.main_config.getboolean('TWITTER', 'ENABLE'):
+                                twitter_media_map_obj = self.tweet_api.media_upload(self.map_file_name)
+                                media_ids = [twitter_media_map_obj.media_id]
+                                if tfr_map_filename is not None:
+                                    twitter_media_tfr_map_obj = self.tweet_api.media_upload(tfr_map_filename)
+                                    media_ids.append(twitter_media_tfr_map_obj.media_id)
+                                elif tfr_map_filename is None:
+                                    print("No TFR Map")
+                                tweet = f"{self.twitter_title} {message}".strip()
+                                self.tweet_api.update_status(status = tweet, media_ids=media_ids)
+                            #Meta
+                            if self.config.has_option('META', 'ENABLE') and self.config.getboolean('META', 'ENABLE'):
+                                from meta_toolkit import post_to_meta_both
+                                post_to_meta_both(self.config.get("META", "FB_PAGE_ID"), self.config.get("META", "IG_USER_ID"), self.map_file_name, message, self.config.get("META", "ACCESS_TOKEN"))
+                            #Mastodon
+                            if self.config.has_section('MASTODON') and self.config.getboolean('MASTODON', 'ENABLE'):
+                                from defMastodon import sendMastodon
+                                sendMastodon(self.map_file_name, message, self.config)
+                            #Bluesky
+                            if self.config.has_section('BLUESKY') and self.config.getboolean('BLUESKY', 'ENABLE'):
+                                self.queue_bluesky_post(message, self.map_file_name)
+                        except Exception as e:
+                            print(f"Error generating screenshot or dispatching circling notification, skipping: {e}")
+                        if os.path.isfile(self.map_file_name):
+                            os.remove(self.map_file_name)
                         self.circle_history['triggered'] = True
                 elif abs(total_change) <= 360 and self.circle_history["triggered"]:
                     print("No Longer Circling, trigger cleared")
