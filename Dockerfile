@@ -5,9 +5,11 @@ WORKDIR /plane-notify
 # Added needed folder for plane-notify process
 RUN mkdir /home/plane-notify
 
-# Set the Chrome repo.
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
+# Set the Chrome repo. apt-key is removed in current Debian releases, so the
+# signing key goes into a keyring file referenced via signed-by instead.
+RUN apt-get update && apt-get install -y --no-install-recommends gnupg wget \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
 
 # Install Chrome.
 RUN apt-get update && apt-get -y install --no-install-recommends \
