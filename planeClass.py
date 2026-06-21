@@ -534,21 +534,21 @@ class Plane:
                 else:
                     distance_message = ""
                 if landed_time is not None and self.type is not None:
-                    print("Running fuel info calc")
-                    flight_time_min = landed_time.total_seconds() / 60
-                    from fuel_calc import fuel_calculation, fuel_message
-                    fuel_info = fuel_calculation(self.type, flight_time_min)
-                    if fuel_info is not None:
-                        fuel_message = fuel_message(fuel_info)
-                        if self.config.getboolean('DISCORD', 'ENABLE'):
-                            dis_message = f"{self.dis_title} {distance_message} \nFlight Fuel Info ```{fuel_message}```".strip()
-                            role_id = self.config.get('DISCORD', 'ROLE_ID') if self.config.has_option('DISCORD', 'ROLE_ID') and self.config.get('DISCORD', 'ROLE_ID').strip() != "" else None
-                            sendDis(dis_message, self.config, role_id)
-                        if self.config.getboolean('TWITTER', 'ENABLE') and Plane.main_config.getboolean('TWITTER', 'ENABLE'):
-                            try:
+                    try:
+                        print("Running fuel info calc")
+                        flight_time_min = landed_time.total_seconds() / 60
+                        from fuel_calc import fuel_calculation, fuel_message
+                        fuel_info = fuel_calculation(self.type, flight_time_min)
+                        if fuel_info is not None:
+                            fuel_message = fuel_message(fuel_info)
+                            if self.config.getboolean('DISCORD', 'ENABLE'):
+                                dis_message = f"{self.dis_title} {distance_message} \nFlight Fuel Info ```{fuel_message}```".strip()
+                                role_id = self.config.get('DISCORD', 'ROLE_ID') if self.config.has_option('DISCORD', 'ROLE_ID') and self.config.get('DISCORD', 'ROLE_ID').strip() != "" else None
+                                sendDis(dis_message, self.config, role_id)
+                            if self.config.getboolean('TWITTER', 'ENABLE') and Plane.main_config.getboolean('TWITTER', 'ENABLE'):
                                 self.latest_tweet_id = self.tweet_api.update_status(status = ((self.twitter_title + " " + distance_message + " " + fuel_message).strip()), in_reply_to_status_id = self.latest_tweet_id).id
-                            except tweepy.errors.TweepyException as e:
-                                raise
+                    except Exception as e:
+                        print(f"Error calculating/dispatching fuel info, skipping: {e}")
                 self.latest_tweet_id = None
                 self.recheck_route_time = None
                 self.known_to_airport = None
